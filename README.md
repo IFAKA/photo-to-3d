@@ -19,7 +19,7 @@ git clone https://github.com/IFAKA/photo-to-3d && cd photo-to-3d
 ./photo3d examples/cheesecake-input.jpg cheesecake.glb 24 --plug -0.012,0.44
 #          photo                         output         width in cm
 
-# B) Fully on your Mac, no quota, about 5-7 minutes (see "Local run" below)
+# B) Fully on your Mac, no quota, about 1.5 minutes per photo (see "Local run" below)
 export TRELLIS_MAC=/path/to/trellis-mac
 ./photo3d-local examples/cheesecake-input.jpg cheesecake.glb 24
 ```
@@ -70,7 +70,7 @@ Change it with `--faces N --tex PX`. A flat product like a box can use fewer fac
 ## Local run (no cloud quota)
 
 `photo3d-local PHOTO OUT.glb WIDTH_CM` does everything on an Apple Silicon Mac (24 GB RAM or more recommended).
-About 4-7 minutes for the AI step, then 6 seconds to finish. No plug needed, and the result is smoother than the
+About 1-2 minutes per photo (use `./photo3d-batch LIST OUTDIR` for many photos: the AI models load once, 6 sampling steps instead of 12, Blender runs while the next photo generates). With 12 steps (`photo3d-local`) it takes 3-5 minutes. No plug needed, and the result is smoother than the
 cloud one.
 
 Setup (once):

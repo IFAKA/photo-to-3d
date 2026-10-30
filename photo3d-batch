@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+# Many photos -> real-size GLBs on this Mac, about 1-1.5 min each (models load once; Blender runs while the next photo generates).
+# usage: photo3d-batch LIST OUTDIR [--steps N] [--faces N] [--tex PX]
+# LIST: one line per photo: "PHOTO NAME WIDTH_CM" -> OUTDIR/NAME.glb. Needs env TRELLIS_MAC (see README "Local run").
+set -euo pipefail
+[ $# -ge 2 ] || { sed -n 2,5p "$0"; exit 2; }
+LIST=$1; OUT=$2; shift 2; STEPS=6; FACES=50000; TEX=1024
+while [ $# -gt 0 ]; do case $1 in --steps) STEPS=$2; shift 2;; --faces) FACES=$2; shift 2;; --tex) TEX=$2; shift 2;; *) echo "unknown $1"; exit 2;; esac; done
+: "${TRELLIS_MAC:?set TRELLIS_MAC to your trellis-mac folder}"
+HERE="$(cd "$(dirname "$0")" && pwd)"; PY="$HERE/.venv/bin/python"; mkdir -p "$OUT"; T=$(mktemp -d); S=$(date +%s)
+trap 'kill $GEN 2>/dev/null || true; rm -rf "$T"' EXIT
+cp "$HERE/local/batch_vox.py" "$TRELLIS_MAC/batch_vox.py"
+awk -v t="$T" '{print $1" "t"/"$2}' "$LIST" > "$T/gen.list"
+nice -n 5 "$TRELLIS_MAC/.venv/bin/python" "$TRELLIS_MAC/batch_vox.py" "$T/gen.list" --steps "$STEPS" > "$T/gen.log" 2>&1 & GEN=$!
+finish() { # NAME WIDTH
+  "$PY" -I "$HERE/scripts/local_color.py" "$T/$1_vox.npz" "$T/$1.ply" >/dev/null
+  blender -b --python-exit-code 1 -P "$HERE/scripts/bl_local.py" -- "$T/$1.ply" "$T/$1.glb" "$FACES" "$TEX" >/dev/null 2>&1
+  "$PY" -I "$HERE/scripts/set_width.py" "$T/$1.glb" "$OUT/$1.glb" "$2" >/dev/null; rm -f "$T/$1_vox.npz" "$T/$1.ply" "$T/$1.glb"
+  echo "done: $OUT/$1.glb ($(du -h "$OUT/$1.glb" | cut -f1), $(( $(date +%s) - S )) s)"; }
+PIDS=""
+while read -r PHOTO NAME CM; do
+  [ -n "$PHOTO" ] || continue
+  while [ ! -f "$T/${NAME}_vox.npz" ] && [ ! -f "$T/${NAME}_failed" ]; do kill -0 $GEN 2>/dev/null || break; sleep 2; done
+  [ -f "$T/${NAME}_vox.npz" ] || { echo "failed: $NAME"; continue; }
+  finish "$NAME" "$CM" & PIDS="$PIDS $!"
+done < "$LIST"
+wait $PIDS
