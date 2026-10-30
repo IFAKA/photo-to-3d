@@ -1,6 +1,7 @@
 # Vertex-coloured raw mesh -> small UV-textured GLB (Y up).
 # Usage: blender -b -P bl_local.py -- IN.ply OUT.glb FACES TEX
-# Makes a clean low copy (voxel remesh -> decimate -> smooth -> UV) and bakes the colours from the full mesh onto it.
+# Decimating first and cleaning the small mesh afterwards takes about 8 s (cleaning the full 1M-face mesh took 50 s).
+# Makes a clean low copy (decimate -> clean holes -> smooth -> UV) and bakes the colours from the full mesh onto it.
 import bpy, sys, math
 a = sys.argv[sys.argv.index("--") + 1:]; src, out, faces, tex = a[0], a[1], int(a[2]), int(a[3])
 bpy.ops.wm.read_factory_settings(use_empty=True)
@@ -18,16 +19,12 @@ def cleanup(o):
     bpy.ops.mesh.remove_doubles(threshold=0.0005); bpy.ops.mesh.fill_holes(sides=0)
     bpy.ops.mesh.dissolve_degenerate(threshold=0.0005); bpy.ops.mesh.normals_make_consistent(inside=False)
     bpy.ops.object.mode_set(mode="OBJECT")
-cleanup(lo)
-# Voxel remesh gives the cleanest surface, but it collapses on open meshes (it keeps only a few percent of the faces).
-# Then decimate the cleaned full mesh directly.
-keep = lo.data.copy()
-mod(lo, "REMESH", mode="VOXEL", voxel_size=0.004)
-if len(lo.data.polygons) < faces * 0.5:
-    print("remesh collapsed, decimating directly"); lo.data = keep; cleanup(lo)
-mod(lo, "TRIANGULATE")
-n = len(lo.data.polygons); print("remesh", n)
+n = len(lo.data.polygons)
 mod(lo, "DECIMATE", ratio=min(1.0, faces / n))
+cleanup(lo)
+n2 = len(lo.data.polygons)
+if n2 > faces * 1.05: mod(lo, "DECIMATE", ratio=faces / n2)
+print("faces", len(lo.data.polygons))
 mod(lo, "SMOOTH", factor=0.5, iterations=4)
 cleanup(lo)
 print("faces", len(lo.data.polygons))

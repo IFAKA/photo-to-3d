@@ -101,6 +101,13 @@ Do not run `bl_shrink.py` on the local result: it breaks the texture. `photo3d-l
   ngrok free adds a warning page that blocks the model file; a Cloudflare quick tunnel does not.
 - Hands in front of the model (occlusion) needs a phone with real depth sensing.
 
+## Speed notes (measured on an M-series Mac)
+
+- Use 6 sampling steps (default in `photo3d-batch`): about 2.5x faster than 12 with the same look. 4 steps breaks the model.
+- Blender step: about 8 s. Decimate the raw mesh first, then clean holes on the small mesh. Cleaning the full mesh first took 50 s.
+- 50k faces and a 1024 px texture are the floor: 20k faces with a 512 px texture shatters the cream on the test cake.
+- Load the AI models once (`photo3d-batch`) and let Blender run while the next photo generates.
+
 ## FAQ
 
 **Can I make a 3D model from one photo?** Yes. Modern image-to-3D AI (TRELLIS.2) guesses the back and the height
