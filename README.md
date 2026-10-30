@@ -36,3 +36,16 @@ Needs `python3` and `blender` on the PATH. The first run makes `.venv` by itself
 - It needs the gated model `facebook/dinov3-vitl16-pretrain-lvd1689m` (Meta license form on Hugging Face).
   Weights load took about 4 minutes and 10 GB of memory before it stopped on that gate.
 - Run: `python generate.py photo.jpg --output out --texture-size 2048`
+
+## How much detail
+
+More detail than the eye can see only costs download time and size. Measured on the cheesecake (24 cm):
+
+| faces / texture | file | look |
+|---|---|---|
+| 73k / 2048 | 4.0 MB | clean, even very close |
+| **50k / 1024 (default)** | 2.4 MB | clean at AR distance, small shards only if you zoom to 30 cm |
+| 30k / 1024 | 1.7 MB | shards on the fruit when close |
+| 20k / 1024, 15k / 512 | 1.2 MB / 0.9 MB | too rough for AR |
+
+Why: the drawer shows the model about 420 px wide. In AR on a 1440 px phone the cake is about 600 px (50 cm away) to 1000 px (30 cm). A 1024 px texture already matches that, so 2048 px is wasted. Faces matter more than texture here, because decimation makes the visible shards. Use `--faces` and `--tex` to change it (a flat product like a box can use fewer faces).
