@@ -1,0 +1,20 @@
+#!/bin/bash
+# photo3d PHOTO OUT.glb WIDTH_CM [--plug Y,R] [--raw RAW.glb]
+#   PHOTO     product photo (or use --raw to skip the cloud step and start from a model you already have)
+#   WIDTH_CM  real width of the product; AR shows it at this size
+#   --plug    hide holes under the top surface with a disc at height Y (m), radius R (m); cakes: --plug -0.012,0.44
+# Output: a small, real-size GLB for the shop's public/models/ folder. Needs: python3, blender.
+set -euo pipefail
+HERE="$(cd "$(dirname "$0")" && pwd)"; VENV="$HERE/.venv"
+[ $# -ge 3 ] || { sed -n 2,7p "$0"; exit 2; }
+PHOTO=$1; OUT=$2; CM=$3; shift 3; PLUG=""; RAW=""
+while [ $# -gt 0 ]; do case $1 in --plug) PLUG=$2; shift 2;; --raw) RAW=$2; shift 2;; *) echo "unknown $1"; exit 2;; esac; done
+if [ ! -x "$VENV/bin/python" ]; then
+  python3 -m venv "$VENV" && "$VENV/bin/pip" -q install trimesh numpy scipy pillow gradio_client
+fi
+PY="$VENV/bin/python"; T=$(mktemp -d); trap 'rm -rf "$T"' EXIT; S=$(date +%s)
+if [ -n "$RAW" ]; then cp "$RAW" "$T/a.glb"; else "$PY" -I "$HERE/scripts/cloud.py" "$PHOTO" "$T/a.glb"; fi
+if [ -n "$PLUG" ]; then "$PY" -I "$HERE/scripts/plug.py" "$T/a.glb" "$T/b.glb" "${PLUG%,*}" "${PLUG#*,}" >/dev/null; else cp "$T/a.glb" "$T/b.glb"; fi
+"$PY" -I "$HERE/scripts/set_width.py" "$T/b.glb" "$T/c.glb" "$CM"
+blender -b --python-exit-code 1 -P "$HERE/scripts/bl_shrink.py" -- "$T/c.glb" "$OUT" 0.25 >/dev/null 2>&1
+echo "done: $OUT ($(du -h "$OUT" | cut -f1), $(( $(date +%s) - S )) s)"
