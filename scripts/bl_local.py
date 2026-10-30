@@ -13,14 +13,26 @@ def mod(o, kind, **kw):
     sel(o); m = o.modifiers.new("m", kind)
     for k, v in kw.items(): setattr(m, k, v)
     bpy.ops.object.modifier_apply(modifier="m")
+def cleanup(o):
+    sel(o); bpy.ops.object.mode_set(mode="EDIT"); bpy.ops.mesh.select_all(action="SELECT")
+    bpy.ops.mesh.remove_doubles(threshold=0.0005); bpy.ops.mesh.fill_holes(sides=0)
+    bpy.ops.mesh.dissolve_degenerate(threshold=0.0005); bpy.ops.mesh.normals_make_consistent(inside=False)
+    bpy.ops.object.mode_set(mode="OBJECT")
+cleanup(lo)
+# Voxel remesh gives the cleanest surface, but it collapses on open meshes (it keeps only a few percent of the faces).
+# Then decimate the cleaned full mesh directly.
+keep = lo.data.copy()
 mod(lo, "REMESH", mode="VOXEL", voxel_size=0.004)
+if len(lo.data.polygons) < faces * 0.5:
+    print("remesh collapsed, decimating directly"); lo.data = keep; cleanup(lo)
 mod(lo, "TRIANGULATE")
 n = len(lo.data.polygons); print("remesh", n)
 mod(lo, "DECIMATE", ratio=min(1.0, faces / n))
 mod(lo, "SMOOTH", factor=0.5, iterations=4)
+cleanup(lo)
 print("faces", len(lo.data.polygons))
 sel(lo); bpy.ops.object.mode_set(mode="EDIT"); bpy.ops.mesh.select_all(action="SELECT")
-bpy.ops.uv.smart_project(angle_limit=math.radians(66), island_margin=0.012); bpy.ops.object.mode_set(mode="OBJECT")
+bpy.ops.uv.smart_project(angle_limit=math.radians(89), island_margin=0.02); bpy.ops.object.mode_set(mode="OBJECT")
 img = bpy.data.images.new("bake", tex, tex)
 # hi: emission from vertex colour; lo: image node active
 mh = bpy.data.materials.new("h"); mh.use_nodes = True; nt = mh.node_tree; nt.nodes.clear()
