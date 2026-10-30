@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+# Photo -> real-size GLB, fully on this Mac (no cloud quota). About 5-8 min on an M-series Mac.
+# usage: photo3d-local PHOTO OUT.glb WIDTH_CM [--faces N] [--tex PX] [--vox VOX.npz]
+# Needs trellis-mac (see README "Local run"), env TRELLIS_MAC=path to it. --vox reuses a saved voxel dump (skips generation).
+set -euo pipefail
+[ $# -ge 3 ] || { sed -n 2,5p "$0"; exit 2; }
+PHOTO=$1; OUT=$2; CM=$3; shift 3; FACES=50000; TEX=1024; VOX=""
+while [ $# -gt 0 ]; do case $1 in --faces) FACES=$2; shift 2;; --tex) TEX=$2; shift 2;; --vox) VOX=$2; shift 2;; *) echo "unknown $1"; exit 2;; esac; done
+HERE="$(cd "$(dirname "$0")" && pwd)"; PY="$HERE/.venv/bin/python"; T=$(mktemp -d); trap 'rm -rf "$T"' EXIT; S=$(date +%s)
+[ -x "$PY" ] || { echo "run ./photo3d once first (makes the venv)"; exit 1; }
+if [ -z "$VOX" ]; then
+  : "${TRELLIS_MAC:?set TRELLIS_MAC to your trellis-mac folder}"
+  VOXDUMP=1 nice -n 5 "$TRELLIS_MAC/.venv/bin/python" "$TRELLIS_MAC/generate.py" "$PHOTO" --output "$T/g" --texture-size 1024 >"$T/gen.log" 2>&1 || true
+  VOX="$T/g_vox.npz"; [ -f "$VOX" ] || { echo "generation failed, see log:"; tail -5 "$T/gen.log"; exit 1; }
+fi
+"$PY" -I "$HERE/scripts/local_color.py" "$VOX" "$T/c.ply" >/dev/null
+blender -b --python-exit-code 1 -P "$HERE/scripts/bl_local.py" -- "$T/c.ply" "$T/d.glb" "$FACES" "$TEX" >/dev/null 2>&1
+"$PY" -I "$HERE/scripts/set_width.py" "$T/d.glb" "$OUT" "$CM"
+echo "done: $OUT ($(du -h "$OUT" | cut -f1), $(( $(date +%s) - S )) s)"

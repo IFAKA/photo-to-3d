@@ -49,3 +49,16 @@ More detail than the eye can see only costs download time and size. Measured on 
 | 20k / 1024, 15k / 512 | 1.2 MB / 0.9 MB | too rough for AR |
 
 Why: the drawer shows the model about 420 px wide. In AR on a 1440 px phone the cake is about 600 px (50 cm away) to 1000 px (30 cm). A 1024 px texture already matches that, so 2048 px is wasted. Faces matter more than texture here, because decimation makes the visible shards. Use `--faces` and `--tex` to change it (a flat product like a box can use fewer faces).
+
+## Local run (no cloud quota)
+
+`photo3d-local PHOTO OUT.glb WIDTH_CM` does everything on the Mac. Cheesecake: about 4–7 min for the AI step, then 6 s to finish. Result: 50k faces, 1024 px, 1.7 MB, with no plug needed. It looks smoother than the cloud one.
+
+Setup (once): clone `shivampkumar/trellis-mac`, run `SKIP_METAL=1 bash setup.sh`, `uv pip install -p .venv/bin/python einops`, apply `local/trellis-mac.patch` to `generate.py` and make `.float()` in `TRELLIS.2/trellis2/pipelines/rembg/BiRefNet.py` `to()`. Also use `ZhengPeng7/BiRefNet` instead of RMBG-2.0 (licence). Then `export TRELLIS_MAC=/path/to/trellis-mac`.
+
+Three bugs found on the way (all fixed in the patch / scripts):
+1. The mesh from trellis-mac is wound inside-out. It looks like shards until you flip the faces.
+2. Its own UV unwrap (xatlas) breaks the mesh into thousands of tiny pieces. So we skip it: colour the vertices from the voxels (`local_color.py`), then Blender makes a clean low copy and bakes the colour onto it (`bl_local.py`).
+3. Blender's voxel remesh makes quads, so "55k faces" was really 110k triangles. Triangulate first. Use smooth shading, or every triangle gets its own 3 vertices and the file is 3x bigger.
+
+Do not run `bl_shrink.py` on this result: it breaks the texture. `photo3d-local` does not.
