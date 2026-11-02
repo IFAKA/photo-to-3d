@@ -130,3 +130,11 @@ table, WebXR, model-viewer, TRELLIS.2, ecommerce 3D, food 3D model, bakery AR me
 ## Licence
 
 MIT, see `LICENSE`. Example photo: CC BY-SA 4.0 (`examples/ATTRIBUTION.md`).
+
+---
+
+## Support
+
+If this project is useful to you, you can support my work:
+
+[![Support me on Ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/zfaka)
